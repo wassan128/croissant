@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+	<meta name="Keywords"  content="iOS,safari,iphone,ipad" />
+	<title>クロワッサンはやっぱり黒くない</title>
+	<link href="https://fonts.googleapis.com/earlyaccess/roundedmplus1c.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" />
+	<link rel="stylesheet" href="/croissant/css/style.css"/>
+</head>
+<body>
+	<header>
+		<img src="http://wassan128.github.io/img/icon.png"/>
+		<h1><a href="/croissant/">クロワッサンはやっぱり黒くない</a></h1>
+		<h3>とある高専生の備忘録 - 2nd season</h3>
+	</header>
+	<main>
+
+<article><h1>NoSQL injectionの話</h1>
+
+<p>自分用まとめ。
+CTFの問題を具体例とし、どんなものか書く。</p>
+
+<h2>NoSQL Injectionとは</h2>
+
+<p>NoSQL(Not only SQL)に対するInjection攻撃の総称である。SQL Injectionが所謂RDB(Relational DataBase, MySQLやSQLiteなど)に対する攻撃であるのに対し、NoSQL Injectionにおける攻撃対象はMongoDBやRedisといったRDBに分類されないNoSQLデータベースである。例えばMongoDBではデータの保存にJSON形式を用いる。これにより、リアルタイム性や拡張性、柔軟性が高いだけでなく、従来のSQL Injection攻撃を事実上無効となるなどのメリットがある。</p>
+
+<p>しかしながら無論セキュリティリスクがないわけではない。その一つが今回例を交えてまとめるNoSQL Injectionである。また、今回の例題ではMongoDBが用いられているので、その上で話を進めていく。</p>
+
+<h2>MongoDBにおけるデータ</h2>
+
+<h3>保存形式</h3>
+
+<p>前述の通り、JSON形式で保存される。RDBで言うテーブルであるところの「コレクション」に、「ドキュメント」と呼ばれるオブジェクトが挿入される。以下にドキュメントの具体例を示す。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">{
+    <span style="color:#5bc4bf">&#34;username&#34;</span>: <span style="color:#48b685">&#34;admin&#34;</span>,
+    <span style="color:#5bc4bf">&#34;password&#34;</span>: <span style="color:#48b685">&#34;something&#34;</span>
+}
+</pre>
+<p>このドキュメントが<code>users</code>コレクションに挿入されている状況では、例えば以下のクエリでこのドキュメントを取得できる。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e"><span style="color:#815ba4">const</span> <span style="color:#06b6ef">query</span> <span style="color:#5bc4bf">=</span> {
+    <span style="color:#06b6ef">username</span><span style="color:#5bc4bf">:</span> <span style="color:#48b685">&#34;admin&#34;</span>,
+    <span style="color:#06b6ef">password</span><span style="color:#5bc4bf">:</span> <span style="color:#48b685">&#34;something&#34;</span>
+};
+
+<span style="color:#06b6ef">db</span>.<span style="color:#06b6ef">collection</span>(<span style="color:#48b685">&#34;users&#34;</span>).<span style="color:#06b6ef">findOne</span>(<span style="color:#06b6ef">query</span>, (<span style="color:#06b6ef">err</span>, <span style="color:#06b6ef">user</span>) =&gt; {
+    <span style="color:#776e71">// something to do
+</span><span style="color:#776e71"></span>});
+</pre>
+<h2>MongoDBに対するNoSQL Injection</h2>
+
+<p>angstrom CTFのNo Sequelsという問題では、POST経由で受け取ったパラメータを、上記クエリを構築するために用いていた。</p>
+<aside><p class='post-date'>投稿日: 2019/04/23</p>
+</aside></article>
+	</main>
+	<footer>
+		<p>&copy; 2018 wassan128 / MeltDowner</p>
+	</footer>
+</body>
+</html>
+
+
