@@ -121,7 +121,7 @@ get <span style="color:#48b685">&#39;/image/:name/:image&#39;</span> <span style
 
 <p>のようなパターンは弾かれてしまう。</p>
 
-<p>しかし、この問題の正規表現をよく見ると先頭/末尾を表す文字に <code>^</code>, <code>$</code> が使われている。<a href="https://blog.tokumaru.org/2014/03/z.html" rel="nofollow">徳丸先生もおっしゃられている</a>ように、Rubyにおいては <code>/^$/</code> は行の先頭/末尾を示すパターンであり、複数行の場合はこの限りでない。つまり、</p>
+<p>しかし、この問題の正規表現をよく見ると先頭/末尾を表す文字に <code>^</code>, <code>$</code> が使われている。<a href="https://blog.tokumaru.org/2014/03/z.html" rel="nofollow">徳丸先生もおっしゃられている</a>ように、 <code>/^$/</code> はあくまで行の先頭/末尾を示すパターンであり、複数行の場合はこの限りでない。つまり、</p>
 
 <p><code>http://web.kosenctf.com:12000/image/xxxxxxxxxxxxxxxx/image.png\n;ls</code></p>
 
