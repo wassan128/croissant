@@ -123,7 +123,7 @@ get <span style="color:#48b685">&#39;/image/:name/:image&#39;</span> <span style
 
 <p>しかし、この問題の正規表現をよく見ると先頭/末尾を表す文字に <code>^</code>, <code>$</code> が使われている。<a href="https://blog.tokumaru.org/2014/03/z.html" rel="nofollow">徳丸先生もおっしゃられている</a>ように、 <code>/^$/</code> はあくまで行の先頭/末尾を示すパターンであり、複数行の場合(特に、Rubyはデフォルトが複数行モードのようなので)はこの限りでない。つまり、</p>
 
-<p><code>http://web.kosenctf.com:12000/image/xxxxxxxxxxxxxxxx/image.png\n;ls</code></p>
+<p><code>http://web.kosenctf.com:12000/image/xxxxxxxxxxxxxxxx/image.png\nls</code></p>
 
 <p>とした場合、上記の正規表現チェックを回避できる。
 これを <code>/image/:name/:image</code> エンドポイント内の <code>system</code> 関数内で用い、flagを外へ持ち出すコードが以下である。</p>
